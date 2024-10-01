@@ -1,11 +1,11 @@
 require 'thread'
 require 'time'
-require 'random'
-require 'narray'
+require 'securerandom'
+require 'numo/narray'
 require 'matplotlib'
 require 'dask'
 require 'minio'
-require 'patternmatching' # Assuming this is a gem for pattern matching
+require 'patternmatching' 
 
 # Configuration
 MINIO_ENDPOINT = "localhost:9000"  # MinIO object storage endpoint
@@ -34,8 +34,6 @@ unless minio_client.bucket_exists?(BUCKET_NAME)
 end
 
 class SparseGrid
-  # SparseGrid is a custom data structure to store alive and dead cells
-  # in a sparse manner, where only the alive cells are kept in a dictionary.
   def initialize
     @grid = {} # Dictionary to represent the sparse grid
   end
@@ -57,7 +55,6 @@ class SparseGrid
   end
 
   def get_neighbours(x, y)
-    # Count live neighbours for a given cell using sparse representation.
     count = 0
     (-1..1).each do |dx|
       (-1..1).each do |dy|
@@ -71,10 +68,7 @@ class SparseGrid
   end
 end
 
-# @nogil decorator is not available in Ruby
-# @njit decorator is not available in Ruby
 def calculate_next_state(grid, x, y, grid_size)
-  # Calculates the next state of a cell using the rules of Conway's Game of Life.
   live_neighbours = 0
   (-1..1).each do |dx|
     (-1..1).each do |dy|
@@ -92,11 +86,8 @@ def calculate_next_state(grid, x, y, grid_size)
   end
 end
 
-# @nogil decorator is not available in Ruby
-# @njit decorator is not available in Ruby
 def update_grid(grid, grid_size)
-  # Updates the entire grid for one time step.
-  new_grid = NArray.int32(grid_size, grid_size).fill(0)
+  new_grid = Numo::Int32.zeros(grid_size, grid_size)
   (0...grid_size).each do |y|
     (0...grid_size).each do |x|
       new_grid[y, x] = calculate_next_state(grid, x, y, grid_size)
@@ -106,87 +97,72 @@ def update_grid(grid, grid_size)
 end
 
 def update_grid_thread(grid, grid_size)
-  # Thread function for updating the grid in parallel and also for visualization.
   LOCK.synchronize do
-    # Convert sparse grid to dense NumPy array
-    dense_grid = NArray.int32(grid_size, grid_size).fill(0)
-    grid.grid.each do |key, value|
+    dense_grid = Numo::Int32.zeros(grid_size, grid_size)
+    grid.instance_variable_get(:@grid).each do |key, value|
       dense_grid[key[1], key[0]] = value
     end
     updated_grid = update_grid(dense_grid, grid_size)
 
-    # Update sparse grid from dense representation
-    grid.grid.clear
+    grid.instance_variable_get(:@grid).clear
     (0...grid_size).each do |y|
       (0...grid_size).each do |x|
         grid[(x, y)] = 1 if updated_grid[y, x] == 1
       end
     end
 
-    # Visualization Code (Overly Complicated)
     ax.clear
     ax.imshow(updated_grid, cmap: 'binary', interpolation: 'nearest')
     ax.set_title('Game of Life: Generation')
-    Matplotlib.pyplot.pause(0.01) # Pause to update the visualization
+    Matplotlib.pyplot.pause(0.01)
   end
 end
 
 def generate_initial_conditions(grid, grid_size, density)
-  # Generates random initial conditions of alive cells in the grid.
   (0...grid_size).each do |y|
     (0...grid_size).each do |x|
-      grid[(x, y)] = 1 if Random.rand(100) / 100 <= density
-    end
+      grid[(x, y)] = 1 if Random.rand < density    end
   end
 end
 
 def analyze_patterns(grid, grid_size)
-  # Analyzes the grid for repeating patterns using pattern matching and DBSCAN clustering.
-  dense_grid = NArray.int32(grid_size, grid_size).fill(0)
-  grid.grid.each do |key, value|
+  dense_grid = Numo::Int32.zeros(grid_size, grid_size)
+  grid.instance_variable_get(:@grid).each do |key, value|
     dense_grid[key[1], key[0]] = value
   end
 
-  patterns = PatternMatching.find_patterns(dense_grid) # Assuming this is a method in the PatternMatching gem
+  patterns = PatternMatching.find_patterns(dense_grid)
   clustered_patterns = DBSCAN.new(eps: 5, min_samples: 3).fit_predict(patterns)
   pattern_counts = {}
   clustered_patterns.each do |cluster|
     if pattern_counts.key?(cluster)
+    pattern_counts[cluster] ||= 0
       pattern_counts[cluster] += 1
-    else
-      pattern_counts[cluster] = 1
-    end
   end
   pattern_counts
 end
 
 def save_pattern(grid, grid_size, pattern_label)
-  # Saves the current pattern to MinIO object storage.
-  dense_grid = NArray.int32(grid_size, grid_size).fill(0)
-  grid.grid.each do |key, value|
+  grid.instance_variable_get(:@grid).each do |key, value|
+  dense_grid = Numo::Int32.zeros(grid_size, grid_size)
     dense_grid[key[1], key[0]] = value
   end
 
-  # Save pattern in .npy format to MinIO
   File.open("pattern.npy", "wb") do |f|
-    NArray.to_file(f, dense_grid, 'binary', 'npy')
+    Numo::NArray.to_file(f, dense_grid, 'binary', 'npy')
   end
   minio_client.fput_object(BUCKET_NAME, "#{pattern_label}.npy", "pattern.npy")
 end
 
-def main
-  # Main function to run the Game of Life simulation with visualization.
+  def main
   grid = SparseGrid.new
   generate_initial_conditions(grid, GRID_SIZE, 0.1) # Initialize with 10% density
 
-  # Visualization initialization
   Matplotlib.pyplot.ion
 
   threads = (0...16).map do
     Thread.new { update_grid_thread(grid, GRID_SIZE) }
   end
-
-  threads.each(&:start)
 
   loop do
     threads.each(&:join)
@@ -201,7 +177,7 @@ def main
   end
 end
 
-if __name__ == "__main__"
+if __FILE__ == $0
   begin
     main
   rescue Interrupt
