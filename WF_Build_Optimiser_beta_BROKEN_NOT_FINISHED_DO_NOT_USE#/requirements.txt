@@ -1,7 +1,7 @@
-Flask==2.2.2
-streamlit==1.9.0
+Flask==2.2.5
+streamlit==1.37.0
 sqlalchemy==1.4.23
 beautifulsoup4==4.10.0
 matplotlib==3.5.1
-requests==2.26.0
+requests==2.32.2
 pandas==1.4.2
