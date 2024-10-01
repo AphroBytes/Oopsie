@@ -1,6 +1,5 @@
 const { Client } = require('dask');
 const { MinioClient } = require('minio');
-const { njit } = require('numba');
 const { find_patterns } = require('patternmatching');
 const { DBSCAN } = require('sklearn').cluster;
 const { promisify } = require('util');
@@ -64,7 +63,6 @@ class SparseGrid {
   }
 }
 
-@njit
 function calculateNextState(grid, x, y, gridSize) {
   let liveNeighbours = 0;
   for (let dx = -1; dx <= 1; dx++) {
@@ -86,7 +84,6 @@ function calculateNextState(grid, x, y, gridSize) {
   }
 }
 
-@njit
 function updateGrid(grid, gridSize) {
   const newGrid = new Array(gridSize).fill(0).map(() => new Array(gridSize).fill(0));
   for (let y = 0; y < gridSize; y++) {
