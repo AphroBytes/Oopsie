@@ -1,0 +1,18 @@
+{
+  "name": "game-of-life",
+  "version": "1.0.0",
+  "description": "Conway's Game of Life with Dask, Numba, and pattern analysis",
+  "main": "gol.js",
+  "scripts": {
+    "start": "node gol.js"
+  },
+  "author": "heh",
+  "license": "GNU",
+  "dependencies": {
+    "dask": "^2.32.1",
+    "minio": "^8.3.1",
+    "numba": "^0.56.4",
+    "patternmatching": "^0.1.2",
+    "sklearn": "^1.2.2"
+  }
+}

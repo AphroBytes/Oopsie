@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    volumes:
+      - ./data:/WF_Build_Optimiser_beta/data  # Persist data
+    ports:
+      - "8501:8501"  # Bind the port on host to container
+    networks:
+      - warframe_network
+
+networks:
+  warframe_network:
+    driver: bridge

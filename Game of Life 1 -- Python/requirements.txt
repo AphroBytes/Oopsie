@@ -1,0 +1,8 @@
+cython
+numba
+matplotlib
+dask
+distributed
+patternmatching
+scikit-learn
+minio
